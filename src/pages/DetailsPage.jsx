@@ -5,12 +5,20 @@ import CastCard from '../components/CastCard'
 import ProviderCard from '../components/ProviderCard'
 import SeasonCard from '../components/SeasonCard'
 import CountrySelector, { COUNTRIES } from '../components/CountrySelector'
+import DetailsBreadcrumb from '../components/DetailsBreadcrumb'
+import { getSavedQuery } from '../services/searchState'
 
 export default function DetailsPage({ type, id }) {
   const [details, setDetails] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState(null)
   const [selectedCountry, setSelectedCountry] = useState('IN')
+
+  // Read previous query from URL or session storage cache
+  const urlParamFrom = typeof window !== 'undefined'
+    ? (new URLSearchParams(window.location.search).get('from') || '').trim()
+    : ''
+  const previousQuery = urlParamFrom || getSavedQuery() || ''
 
   useEffect(() => {
     let isMounted = true
@@ -49,7 +57,10 @@ export default function DetailsPage({ type, id }) {
   }, [type, id])
 
   const handleBack = () => {
-    if (window.history.length > 1) {
+    if (previousQuery) {
+      window.history.pushState({}, '', `/?query=${encodeURIComponent(previousQuery)}`)
+      window.dispatchEvent(new PopStateEvent('popstate'))
+    } else if (window.history.length > 1) {
       window.history.back()
     } else {
       window.location.href = '/'
@@ -61,9 +72,7 @@ export default function DetailsPage({ type, id }) {
     return (
       <div className="details-page-loading">
         <header className="details-header">
-          <button type="button" onClick={handleBack} className="back-button">
-            ← Back
-          </button>
+          <DetailsBreadcrumb previousQuery={previousQuery} />
           <a href="/" className="header-brand">
             <span className="brand-icon">🍿</span>
             <span className="brand-name">WatchWise</span>
@@ -83,9 +92,7 @@ export default function DetailsPage({ type, id }) {
     return (
       <div className="details-page-error">
         <header className="details-header">
-          <button type="button" onClick={handleBack} className="back-button">
-            ← Back
-          </button>
+          <DetailsBreadcrumb previousQuery={previousQuery} />
           <a href="/" className="header-brand">
             <span className="brand-icon">🍿</span>
             <span className="brand-name">WatchWise</span>
@@ -137,9 +144,7 @@ export default function DetailsPage({ type, id }) {
 
       {/* Details Header Navigation */}
       <header className="details-header">
-        <button type="button" onClick={handleBack} className="back-button" aria-label="Go back">
-          ← Back
-        </button>
+        <DetailsBreadcrumb previousQuery={previousQuery} />
 
         <a href="/" className="header-brand" title="WatchWise Home">
           <span className="brand-icon">🍿</span>

@@ -1,8 +1,10 @@
 import react from '@vitejs/plugin-react'
 import { defineConfig, loadEnv } from 'vite'
+import axios from 'axios'
 
 /**
- * Custom Vite plugin to provide a secure server-side API layer for TMDB.
+ * Custom Vite plugin to provide a secure server-side API layer for TMDB during local development (npm run dev).
+ * NOTE: In production (Vercel), this plugin is ignored. Instead, Vercel natively uses the serverless functions in the /api folder.
  * This keeps TMDB credentials private and prevents exposing them to client-side code.
  */
 function tmdbApiPlugin() {
@@ -36,11 +38,12 @@ function tmdbApiPlugin() {
           }
 
           try {
-            const tmdbUrl = new URL('https://api.themoviedb.org/3/search/multi')
-            tmdbUrl.searchParams.set('query', query)
-            tmdbUrl.searchParams.set('include_adult', 'false')
-            tmdbUrl.searchParams.set('language', 'en-US')
-            tmdbUrl.searchParams.set('page', '1')
+            const params = {
+              query,
+              include_adult: 'false',
+              language: 'en-US',
+              page: '1',
+            }
 
             const headers = {
               Accept: 'application/json',
@@ -49,19 +52,29 @@ function tmdbApiPlugin() {
             if (accessToken) {
               headers.Authorization = `Bearer ${accessToken}`
             } else if (apiKey) {
-              tmdbUrl.searchParams.set('api_key', apiKey)
+              params.api_key = apiKey
             }
 
-            const tmdbRes = await fetch(tmdbUrl.toString(), { headers })
-
-            if (!tmdbRes.ok) {
-              res.statusCode = tmdbRes.status
-              res.setHeader('Content-Type', 'application/json')
-              res.end(JSON.stringify({ error: 'Failed to fetch search results from TMDB' }))
-              return
+            let tmdbRes
+            try {
+              tmdbRes = await axios.get('https://api.themoviedb.org/3/search/multi', {
+                params,
+                headers,
+                timeout: 8000,
+              })
+            } catch (err) {
+              if (err.code === 'ECONNRESET' || !err.response) {
+                tmdbRes = await axios.get('https://api.tmdb.org/3/search/multi', {
+                  params,
+                  headers,
+                  timeout: 8000,
+                })
+              } else {
+                throw err
+              }
             }
 
-            const data = await tmdbRes.json()
+            const data = tmdbRes.data
 
             // Filter only movie and tv items (ignore person results) and normalize properties
             const filteredResults = (data.results || [])
@@ -80,8 +93,9 @@ function tmdbApiPlugin() {
             res.statusCode = 200
             res.setHeader('Content-Type', 'application/json')
             res.end(JSON.stringify({ results: filteredResults }))
-          } catch {
-            res.statusCode = 500
+          } catch (error) {
+            const status = error.response ? error.response.status : 500
+            res.statusCode = status
             res.setHeader('Content-Type', 'application/json')
             res.end(JSON.stringify({ error: 'Internal server error while searching' }))
           }
@@ -112,9 +126,10 @@ function tmdbApiPlugin() {
           }
 
           try {
-            const tmdbUrl = new URL(`https://api.themoviedb.org/3/${type}/${id}`)
-            tmdbUrl.searchParams.set('append_to_response', 'credits,watch/providers')
-            tmdbUrl.searchParams.set('language', 'en-US')
+            const params = {
+              append_to_response: 'credits,watch/providers',
+              language: 'en-US',
+            }
 
             const headers = {
               Accept: 'application/json',
@@ -123,19 +138,29 @@ function tmdbApiPlugin() {
             if (accessToken) {
               headers.Authorization = `Bearer ${accessToken}`
             } else if (apiKey) {
-              tmdbUrl.searchParams.set('api_key', apiKey)
+              params.api_key = apiKey
             }
 
-            const tmdbRes = await fetch(tmdbUrl.toString(), { headers })
-
-            if (!tmdbRes.ok) {
-              res.statusCode = tmdbRes.status
-              res.setHeader('Content-Type', 'application/json')
-              res.end(JSON.stringify({ error: 'Failed to fetch media details from TMDB' }))
-              return
+            let tmdbRes
+            try {
+              tmdbRes = await axios.get(`https://api.themoviedb.org/3/${type}/${id}`, {
+                params,
+                headers,
+                timeout: 8000,
+              })
+            } catch (err) {
+              if (err.code === 'ECONNRESET' || !err.response) {
+                tmdbRes = await axios.get(`https://api.tmdb.org/3/${type}/${id}`, {
+                  params,
+                  headers,
+                  timeout: 8000,
+                })
+              } else {
+                throw err
+              }
             }
 
-            const data = await tmdbRes.json()
+            const data = tmdbRes.data
 
             // Normalize details data
             const isMovie = type === 'movie'

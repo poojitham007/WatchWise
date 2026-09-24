@@ -1,6 +1,7 @@
 import { motion } from 'motion/react'
+import { updateScrollPosition, setNavigatedFromSearch, getSavedQuery } from '../services/searchState'
 
-export default function MediaCard({ media }) {
+export default function MediaCard({ media, searchQuery }) {
   if (!media) return null
 
   const isMovie = media.media_type === 'movie'
@@ -9,7 +10,16 @@ export default function MediaCard({ media }) {
   const posterUrl = media.poster_path
     ? `https://image.tmdb.org/t/p/w500${media.poster_path}`
     : null
-  const detailsHref = `/details/${media.media_type}/${media.id}`
+
+  const activeSearch = searchQuery || getSavedQuery()
+  const detailsHref = `/details/${media.media_type}/${media.id}${
+    activeSearch ? `?from=${encodeURIComponent(activeSearch)}` : ''
+  }`
+
+  const handleClick = () => {
+    updateScrollPosition(window.scrollY)
+    setNavigatedFromSearch(true)
+  }
 
   return (
     <motion.div
@@ -19,7 +29,7 @@ export default function MediaCard({ media }) {
       whileHover={{ y: -6 }}
       transition={{ duration: 0.25, ease: 'easeOut' }}
     >
-      <a href={detailsHref} className="media-card" title={media.title}>
+      <a href={detailsHref} onClick={handleClick} className="media-card" title={media.title}>
         <div className="media-poster-container">
           {posterUrl ? (
             <img

@@ -35,7 +35,9 @@ function App() {
             window.history.pushState({}, '', url.pathname + url.search)
             setCurrentPath(url.pathname)
             window.dispatchEvent(new PopStateEvent('popstate'))
-            window.scrollTo(0, 0)
+            if (url.pathname.startsWith('/details/')) {
+              window.scrollTo(0, 0)
+            }
           }
         }
       }
